@@ -1,0 +1,287 @@
+#include <iostream>
+#include <cctype>
+#include <cmath>
+#include <vector>
+#include <cstdlib>
+
+using namespace std;
+
+template <typename T>
+class SimpleStack
+{
+public:
+	SimpleStack(int capacity);
+	~SimpleStack();
+	bool Empty() const { return topIndex == -1; }
+	bool Full() const { return topIndex == maxCapacity; }
+	T Peek() const;
+	void Push(const T value);
+	T Pop();
+	void PrintStack() const;
+
+private:
+	int maxCapacity;
+	int topIndex;
+	T* elements;
+};
+
+template <typename T>
+SimpleStack<T>::SimpleStack(int capacity)
+{
+	maxCapacity = capacity - 1;
+	elements = new T[capacity];
+	topIndex = -1;
+}
+
+template <typename T>
+SimpleStack<T>::~SimpleStack()
+{
+	delete[] elements;
+}
+
+template <typename T>
+void SimpleStack<T>::Push(const T value)
+{
+	if (Full())
+		cout << "Error: Stack is full." << endl;
+	else
+		elements[++topIndex] = value;
+}
+
+template <typename T>
+T SimpleStack<T>::Pop()
+{
+	if (Empty())
+	{
+		cout << "Error: Stack is empty." << endl;
+		return T();
+	}
+	else
+	{
+		return elements[topIndex--];
+	}
+}
+
+template <typename T>
+T SimpleStack<T>::Peek() const
+{
+	if (Empty())
+	{
+		cout << "Error: Stack is empty." << endl;
+		return T();
+	}
+	else
+		return elements[topIndex];
+}
+
+template <typename T>
+void SimpleStack<T>::PrintStack() const
+{
+	cout << "top -->";
+	for (int i = topIndex; i >= 0; i--)
+		cout << "\t|\t" << elements[i] << "\t|" << endl;
+	cout << "\t|---------------|" << endl;
+}
+
+/// 优先级矩阵
+const int OP_COUNT = 9;
+
+const char priorityTable[OP_COUNT][OP_COUNT] =
+{
+	{'>', '>', '<', '<', '<', '<', '<', '>', '>'},
+	{'>', '>', '<', '<', '<', '<', '<', '>', '>'},
+	{'>', '>', '>', '>', '<', '<', '<', '>', '>'},
+	{'>', '>', '>', '>', '<', '<', '<', '>', '>'},
+	{'>', '>', '>', '>', '>', '<', '<', '>', '>'},
+	{'>', '>', '>', '>', '>', '>', ' ', '>', '>'},
+	{'<', '<', '<', '<', '<', '<', '<', '=', ' '},
+	{' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '},
+	{'<', '<', '<', '<', '<', '<', '<', ' ', '='}
+};
+
+int getOperatorIndex(char op) {
+	switch (op) {
+	case '+': return 0;
+	case '-': return 1;
+	case '*': return 2;
+	case '/': return 3;
+	case '^': return 4;
+	case '!': return 5;
+	case '(': return 6;
+	case ')': return 7;
+	case '\0': return 8;
+	default: return -1;
+	}
+}
+
+char getPriority(char topOp, char currentOp)
+{
+	int i = getOperatorIndex(topOp);
+	int j = getOperatorIndex(currentOp);
+	if (i == -1 || j == -1) {
+		cout << "Invalid operator" << endl;
+		exit(-1);
+	}
+	return priorityTable[i][j];
+}
+
+double factorial(int n)
+{
+	if (n < 0)
+	{
+		cout << "Error: Negative factorial" << endl;
+		exit(-1);
+	}
+	double result = 1;
+	for (int i = 1; i <= n; ++i)
+	{
+		result *= i;
+	}
+	return result;
+}
+
+double calculate(double operand1, char op, double operand2 = 0)
+{
+	switch (op)
+	{
+	case '+':
+		return operand1 + operand2;
+	case '-':
+		return operand1 - operand2;
+	case '*':
+		return operand1 * operand2;
+	case '/':
+		if (operand2 == 0)
+		{
+			cout << "Error: Division by zero" << endl;
+			exit(-1);
+		}
+		return operand1 / operand2;
+	case '^':
+		return pow(operand1, operand2);
+	default:
+		cout << "Error: Invalid operation" << endl;
+		exit(-1);
+	}
+}
+
+double calculate(char op, double operand)
+{
+	switch (op)
+	{
+	case '!':
+		if (operand < 0 || operand != floor(operand))
+		{
+			cout << "Error: Invalid factorial" << endl;
+			exit(-1);
+		}
+		return factorial(static_cast<int>(operand));
+	default:
+		cout << "Error: Invalid unary operation" << endl;
+		exit(-1);
+	}
+}
+
+double evaluateExpression(const char* expr)
+{
+	SimpleStack<double> operands(100);
+	SimpleStack<char> operators(100);
+	operators.Push('\0');
+	while (!operators.Empty())
+	{
+		if (isdigit(*expr))
+		{
+			double num = 0;
+			while (isdigit(*expr))
+			{
+				num = num * 10 + (*expr - '0');
+				expr++;
+			}
+			operands.Push(num);
+		}
+		else
+		{
+			switch (getPriority(operators.Peek(), *expr))
+			{
+			case '<':
+				operators.Push(*expr);
+				expr++;
+				break;
+
+			case '>':
+			{
+				char op = operators.Pop();
+				if ('!' == op)
+				{
+					operands.Push(calculate(op, operands.Pop()));
+				}
+				else
+				{
+					double opnd2 = operands.Pop();
+					double opnd1 = operands.Pop();
+					operands.Push(calculate(opnd1, op, opnd2));
+				}
+				break;
+			}
+
+			case '=':
+				operators.Pop();
+				expr++;
+				break;
+			}
+		}
+	}
+	return operands.Pop();
+}
+
+int maxRectangleInHistogram(const vector<int>& heights)
+{
+	SimpleStack<int> indexStack(100);
+	int maxArea = 0;
+	int len = heights.size();
+
+	for (int i = 0; i < len; i++)
+	{
+		while (!indexStack.Empty() && heights[i] < heights[indexStack.Peek()])
+		{
+			int height = heights[indexStack.Pop()];
+			int width = indexStack.Empty() ? i : i - indexStack.Peek() - 1;
+			maxArea = max(maxArea, height * width);
+		}
+		indexStack.Push(i);
+	}
+
+	while (!indexStack.Empty())
+	{
+		int height = heights[indexStack.Pop()];
+		int width = indexStack.Empty() ? len : len - indexStack.Peek() - 1;
+		maxArea = max(maxArea, height * width);
+	}
+
+	return maxArea;
+}
+
+vector<int> generateRandomHeights(int maxBars, int maxHeight)
+{
+	int numBars = rand() % maxBars + 1;
+	vector<int> heights;
+	for (int i = 0; i < numBars; i++)
+	{
+		heights.push_back(rand() % (maxHeight + 1));
+	}
+
+	return heights;
+}
+
+int main()
+{
+	srand(static_cast<unsigned>(time(0)));
+	const char* expr = "2^3*4+3/2+3!+2*(2*1+1)";
+	cout << "Current expression: " << expr << endl;
+	cout << evaluateExpression(expr) << endl;
+
+	for (int i = 0; i < 10; i++)
+	{
+		vector<int> heights = generateRandomHeights(10, 5);
+		cout << "Current heights array: ";
+		for (size_t j = 0; j < heights.size(); j++)
