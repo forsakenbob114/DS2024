@@ -1,0 +1,138 @@
+#include <iostream>
+#include <vector>
+#include <climits>
+#include <queue>
+#include <stack>
+using namespace std;
+
+
+enum VertexStatus { V_UNVISITED, V_VISITING, V_EXPLORED };
+
+enum EdgeType { E_UNSET, E_TREE, E_BACKWARD, E_FORWARD, E_CROSS };
+
+
+template <typename DataType>
+struct Node {
+    DataType value;
+    int incoming, outgoing;
+    VertexStatus state;
+    int discovery, finish;
+    int ancestor, distance;
+
+    Node(DataType const& val = DataType())
+        : value(val), incoming(0), outgoing(0), state(V_UNVISITED),
+          discovery(-1), finish(-1), ancestor(-1), distance(INT_MAX) {}
+};
+
+template <typename WeightType>
+struct Connection {
+    WeightType cost;
+    int magnitude;
+    EdgeType category;
+
+    Connection(WeightType const& w, int mag)
+        : cost(w), magnitude(mag), category(E_UNSET) {}
+};
+
+
+template <typename NodeType, typename ConnectionType>
+class AbstractGraph {
+public:
+    int vertexCount;
+    virtual int addNode(NodeType const&) = 0;
+    virtual bool edgeExists(int, int) = 0;
+    virtual void createEdge(ConnectionType const&, int, int, int) = 0;
+    virtual int& edgeWeight(int, int) = 0;
+    virtual NodeType removeNode(int) = 0;
+    virtual NodeType& accessNode(int) = 0;
+    virtual void resetGraph() = 0;
+};
+
+
+template <typename NodeType, typename ConnectionType>
+class MatrixGraph : public AbstractGraph<NodeType, ConnectionType> {
+private:
+    vector<Node<NodeType>> nodes;  
+    vector<vector<Connection<ConnectionType>*>> edges;  
+
+public:
+    MatrixGraph() { this->vertexCount = 0; }
+
+    virtual int addNode(NodeType const& data) {
+        nodes.push_back(Node<NodeType>(data));
+        this->vertexCount++;
+        edges.push_back(vector<Connection<ConnectionType>*>(this->vertexCount, nullptr));
+        for (auto& row : edges)
+            row.push_back(nullptr);
+        return this->vertexCount - 1;
+    }
+
+    virtual bool edgeExists(int from, int to) {
+        return (from >= 0 && to >= 0 && to < this->vertexCount && edges[from][to] != nullptr);
+    }
+
+    virtual void createEdge(ConnectionType const& data, int weight, int from, int to) {
+        if (edgeExists(from, to)) return;
+        edges[from][to] = new Connection<ConnectionType>(data, weight);
+    }
+
+    virtual NodeType& accessNode(int index) { return nodes[index].value; }
+
+    virtual int& edgeWeight(int from, int to) { return edges[from][to]->magnitude; }
+
+    virtual NodeType removeNode(int index) {
+        NodeType removedData = nodes[index].value;
+        nodes.erase(nodes.begin() + index);
+        edges.erase(edges.begin() + index);
+        for (auto& row : edges)
+            row.erase(row.begin() + index);
+        this->vertexCount--;
+        return removedData;
+    }
+
+    virtual void resetGraph() {
+        for (auto& node : nodes)
+            node.state = V_UNVISITED;
+        for (auto& row : edges)
+            for (auto& connection : row)
+                if (connection) connection->category = E_UNSET;
+    }
+
+    void breadthFirstSearch(int start) {
+        resetGraph();
+        queue<int> toVisit;
+        toVisit.push(start);
+        nodes[start].state = V_VISITING;
+
+        while (!toVisit.empty()) {
+            int current = toVisit.front();
+            toVisit.pop();
+            nodes[current].state = V_EXPLORED;
+
+            for (int neighbor = 0; neighbor < this->vertexCount; ++neighbor) {
+                if (edgeExists(current, neighbor) && nodes[neighbor].state == V_UNVISITED) {
+                    toVisit.push(neighbor);
+                    nodes[neighbor].state = V_VISITING;
+                }
+            }
+        }
+    }
+};
+
+int main() {
+    MatrixGraph<string, int> graph;
+
+ 
+    int a = graph.addNode("Alpha");
+    int b = graph.addNode("Beta");
+    int c = graph.addNode("Gamma");
+
+
+    graph.createEdge(1, 5, a, b);
+    graph.createEdge(1, 3, b, c);
+
+
+    cout << "Breadth First Search Starting from Alpha:" << endl;
+    graph.breadthFirstSearch(a);
+    return 0;
+}
