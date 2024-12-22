@@ -1,0 +1,156 @@
+#include <iostream>
+#include <vector>
+#include <algorithm>
+#include <chrono>
+#include <random>
+
+using namespace std;
+
+void display(const vector<int>& data) {
+    for (int num : data) cout << num << " ";
+    cout << endl;
+}
+
+void sortBubble(vector<int>& data) {
+    int size = data.size();
+    for (int i = 0; i < size - 1; i++) {
+        for (int j = 0; j < size - i - 1; j++) {
+            if (data[j] > data[j + 1]) {
+                swap(data[j], data[j + 1]);
+            }
+        }
+    }
+}
+
+void sortInsert(vector<int>& data) {
+    int size = data.size();
+    for (int i = 1; i < size; i++) {
+        int temp = data[i];
+        int j = i - 1;
+        while (j >= 0 && data[j] > temp) {
+            data[j + 1] = data[j];
+            j--;
+        }
+        data[j + 1] = temp;
+    }
+}
+
+void sortSelect(vector<int>& data) {
+    int size = data.size();
+    for (int i = 0; i < size - 1; i++) {
+        int minIdx = i;
+        for (int j = i + 1; j < size; j++) {
+            if (data[j] < data[minIdx]) {
+                minIdx = j;
+            }
+        }
+        swap(data[i], data[minIdx]);
+    }
+}
+
+void mergeParts(vector<int>& data, int left, int mid, int right) {
+    int n1 = mid - left + 1;
+    int n2 = right - mid;
+    vector<int> L(n1), R(n2);
+    for (int i = 0; i < n1; i++) L[i] = data[left + i];
+    for (int i = 0; i < n2; i++) R[i] = data[mid + 1 + i];
+    int i = 0, j = 0, k = left;
+    while (i < n1 && j < n2) {
+        if (L[i] <= R[j]) data[k++] = L[i++];
+        else data[k++] = R[j++];
+    }
+    while (i < n1) data[k++] = L[i++];
+    while (j < n2) data[k++] = R[j++];
+}
+
+void sortMerge(vector<int>& data, int left, int right) {
+    if (left < right) {
+        int mid = left + (right - left) / 2;
+        sortMerge(data, left, mid);
+        sortMerge(data, mid + 1, right);
+        mergeParts(data, left, mid, right);
+    }
+}
+
+int partitionData(vector<int>& data, int low, int high) {
+    int pivot = data[high];
+    int i = low - 1;
+    for (int j = low; j < high; j++) {
+        if (data[j] < pivot) {
+            swap(data[++i], data[j]);
+        }
+    }
+    swap(data[i + 1], data[high]);
+    return i + 1;
+}
+
+void sortQuick(vector<int>& data, int low, int high) {
+    if (low < high) {
+        int partIdx = partitionData(data, low, high);
+        sortQuick(data, low, partIdx - 1);
+        sortQuick(data, partIdx + 1, high);
+    }
+}
+
+void heapifyData(vector<int>& data, int size, int root) {
+    int largest = root;
+    int left = 2 * root + 1;
+    int right = 2 * root + 2;
+    if (left < size && data[left] > data[largest]) largest = left;
+    if (right < size && data[right] > data[largest]) largest = right;
+    if (largest != root) {
+        swap(data[root], data[largest]);
+        heapifyData(data, size, largest);
+    }
+}
+
+void sortHeap(vector<int>& data) {
+    int size = data.size();
+    for (int i = size / 2 - 1; i >= 0; i--) heapifyData(data, size, i);
+    for (int i = size - 1; i > 0; i--) {
+        swap(data[0], data[i]);
+        heapifyData(data, i, 0);
+    }
+}
+
+void evaluate(void (*sortFunc)(vector<int>&), vector<int> data, const string& name) {
+    auto start = chrono::high_resolution_clock::now();
+    sortFunc(data);
+    auto end = chrono::high_resolution_clock::now();
+    chrono::duration<double> timeElapsed = end - start;
+    cout << name << " 耗时: " << timeElapsed.count() << " 秒" << endl;
+}
+
+int main() {
+    const int size = 10000;
+    vector<int> seqAsc(size), seqDesc(size), seqRnd(size);
+    iota(seqAsc.begin(), seqAsc.end(), 1);
+    iota(seqDesc.begin(), seqDesc.end(), 1);
+    reverse(seqDesc.begin(), seqDesc.end());
+    random_device rd;
+    mt19937 gen(rd());
+    uniform_int_distribution<> dist(1, size);
+    generate(seqRnd.begin(), seqRnd.end(), [&]() { return dist(gen); });
+    cout << "顺序序列:" << endl;
+    evaluate(sortBubble, seqAsc, "冒泡排序");
+    evaluate(sortInsert, seqAsc, "插入排序");
+    evaluate(sortSelect, seqAsc, "选择排序");
+    evaluate([](vector<int>& d) { sortMerge(d, 0, d.size() - 1); }, seqAsc, "归并排序");
+    evaluate([](vector<int>& d) { sortQuick(d, 0, d.size() - 1); }, seqAsc, "快速排序");
+    evaluate(sortHeap, seqAsc, "堆排序");
+    cout << "\n逆序序列:" << endl;
+    evaluate(sortBubble, seqDesc, "冒泡排序");
+    evaluate(sortInsert, seqDesc, "插入排序");
+    evaluate(sortSelect, seqDesc, "选择排序");
+    evaluate([](vector<int>& d) { sortMerge(d, 0, d.size() - 1); }, seqDesc, "归并排序");
+    evaluate([](vector<int>& d) { sortQuick(d, 0, d.size() - 1); }, seqDesc, "快速排序");
+    evaluate(sortHeap, seqDesc, "堆排序");
+    cout << "\n随机序列:" << endl;
+    evaluate(sortBubble, seqRnd, "冒泡排序");
+    evaluate(sortInsert, seqRnd, "插入排序");
+    evaluate(sortSelect, seqRnd, "选择排序");
+    evaluate([](vector<int>& d) { sortMerge(d, 0, d.size() - 1); }, seqRnd, "归并排序");
+    evaluate([](vector<int>& d) { sortQuick(d, 0, d.size() - 1); }, seqRnd, "快速排序");
+    evaluate(sortHeap, seqRnd, "堆排序");
+    return 0;
+}
